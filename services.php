@@ -1,29 +1,52 @@
 <?php
 include 'includes/db.php';
 
-if (!empty($_POST["Enregistrer"]) and !empty($_POST["name"])) {
-    $insert = $db->prepare('INSERT INTO departments set name=:name');
-    $insert->bindValue(':name', $_POST["name"], PDO::PARAM_STR);
+function createDepartment($db, $name) {
+    $insert = $db->prepare('INSERT INTO departments SET name = :name');
+    $insert->bindValue(':name', trim(htmlspecialchars($name)), PDO::PARAM_STR);
     $insert->execute();
-    $insert_id = $db->lastInsertId();
+    return $db->lastInsertId();
 }
 
-if (!empty($_POST["Editer"]) and !empty($_POST["name"]) ) {
-    $update = $db->prepare('update departments SET name = :name WHERE id = :id');
-    $update->bindValue(':name', $_POST["name"], PDO::PARAM_STR);
-    $update->bindValue(':id', $_POST["id"], PDO::PARAM_INT);
+function updateDepartment($db, $id, $name) {
+    $update = $db->prepare('UPDATE departments SET name = :name WHERE id = :id');
+    $update->bindValue(':name', trim(htmlspecialchars($name)), PDO::PARAM_STR);
+    $update->bindValue(':id', $id, PDO::PARAM_INT);
     $update->execute();
 }
 
-if (!empty($_GET["id"]) and !empty($_GET["action"]) and $_GET["action"] == "effacer" and $_GET["id"] > 0) {
+function deleteDepartment($db, $id) {
     $delete = $db->prepare('DELETE FROM departments WHERE id = :id');
-    $delete->bindValue(':id', $_GET["id"], PDO::PARAM_INT);
+    $delete->bindValue(':id', $id, PDO::PARAM_INT);
     $delete->execute();
 }
 
-$getDepartments = $db->query('select * from departments');
+function getAllDepartments($db) {
+    $query = $db->prepare('SELECT * FROM departments');
+    $query->execute();
+    return $query->fetchAll(PDO::FETCH_ASSOC);
+}
 
+function getDepartmentById($db, $id) {
+    $query = $db->prepare('SELECT * FROM departments WHERE id = :id');
+    $query->bindValue(':id', $id, PDO::PARAM_INT);
+    $query->execute();
+    return $query->fetch(PDO::FETCH_ASSOC);
+}
 
+if (!empty($_POST["Enregistrer"]) and !empty($_POST["name"])) {
+    createDepartment($db, $_POST["name"]);
+}
+
+if (!empty($_POST["Editer"]) and !empty($_POST["name"])) {
+    updateDepartment($db, $_POST["id"], $_POST["name"]);
+}
+
+if (!empty($_GET["id"]) and !empty($_GET["action"]) and $_GET["action"] == "effacer" and $_GET["id"] > 0) {
+    deleteDepartment($db, $_GET["id"]);
+}
+
+$getDepartments = getAllDepartments($db);
 ?>
 
 <!DOCTYPE html>
@@ -38,23 +61,19 @@ $getDepartments = $db->query('select * from departments');
     <a href="./index.php">GESTION EMPLOYES</a>&nbsp;<a href="./services.php">GESTION SERVICES</a>
     <h1>Listes des services</h1>
     <?php
-    while ($department = $getDepartments->fetchObject()) {
-        echo "$department->name";
-        echo " <a href=\"services.php?action=effacer&id=$department->id\">effacer</a>&nbsp;";
-        echo '<a href="services.php?action=editer&id=' . $department->id . '">editer</a><br>';
+    foreach ($getDepartments as $department) {
+        echo $department["name"];
+        echo " <a href=\"services.php?action=effacer&id=" . $department["id"] . "\">effacer</a>&nbsp;";
+        echo '<a href="services.php?action=editer&id=' . $department["id"] . '">editer</a><br>';
     }
     ?>
     <?php 
     if (!empty($_GET["action"]) and $_GET["action"] == "editer") {
         $titre = "Editer";
-        $edit = $db->prepare('select * FROM departments WHERE id = :id');
-        $edit->bindValue(':id', $_GET["id"], PDO::PARAM_INT);
-        $edit->execute();
-        $departmentData = $edit->fetch();
+        $departmentData = getDepartmentById($db, $_GET["id"]);
     } else {
         $titre = "Enregistrer";
-        $departmentData  ["name"] = "";
-        $departmentData  ["id"] = "";
+        $departmentData = ["name" => "", "id" => ""];
     }
     ?>
     <h1><?php echo $titre; ?> un service</h1>
@@ -64,5 +83,6 @@ $getDepartments = $db->query('select * from departments');
         <input type="text" name="name" placeholder="nom" value="<?php echo $departmentData['name']; ?>"><br>
         <input type="submit" name="<?php echo $titre; ?>" value="<?php echo $titre; ?>">
     </form>
+    <script src="./js/modal.js"></script>
 </body>
 </html>
